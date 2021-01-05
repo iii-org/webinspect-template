@@ -1,0 +1,37 @@
+stages:
+  - name: Publish flask image
+    steps:
+      - publishImageConfig:
+          dockerfilePath: ./Dockerfile
+          buildContext: .
+          tag: ${CICD_GIT_REPO_NAME}:${CICD_GIT_BRANCH}-${CICD_EXECUTION_SEQUENCE}
+  - name: Deploy ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH} environment
+    steps:
+      - applyYamlConfig:
+          path: ./k8s-yaml/flask-deployment.yaml
+      - applyYamlConfig:
+          path: ./k8s-yaml/flask-service.yaml
+  - name: Run webinspect-runner
+    steps:
+      - runScriptConfig:
+          image: iiiorg/webinspect-runner
+          shellScript: cd /usr/src/app; node /usr/src/app/app.js
+        env:
+          inspect_url: http://<Your k8s external host>:30185/
+          project_name: ${CICD_GIT_REPO_NAME}
+          git_branch: ${CICD_GIT_BRANCH}
+          git_commit_id: ${CICD_GIT_COMMIT}
+          verbose: true
+        envFrom:
+          - sourceName: webinspect
+            sourceKey: wi_base_url
+            targetKey: wi_base_url
+          - sourceName: nexus
+            sourceKey: username
+            targetKey: api_username
+          - sourceName: nexus
+            sourceKey: password
+            targetKey: api_password
+          - sourceName: nexus
+            sourceKey: api_origin
+            targetKey: api_origin
